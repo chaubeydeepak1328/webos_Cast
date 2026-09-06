@@ -4,6 +4,7 @@ import { bestLanAddress } from './net';
 import { CaptureMethod, ScreenCapture } from './capture';
 import { SsapClient } from './ssap';
 import { StreamServer } from './server';
+import { KeepAwake } from './keepawake';
 import { loadEnv } from './env';
 
 const LAST_TV = 'webosCast.lastTv';
@@ -23,6 +24,7 @@ interface Session {
   ssap: SsapClient;
   capture: ScreenCapture;
   server: StreamServer;
+  keepAwake?: KeepAwake;
   url: string;
 }
 
@@ -245,7 +247,22 @@ async function finishCast(
   }
   ssap.toast('Screen cast started from VS Code').catch(() => undefined);
 
-  session = { tv, ssap, capture, server, url };
+  // 5. Stop the TV sleeping on us. Best effort: a set that refuses the pointer
+  //    channel still casts, it just may hit its own screensaver.
+  let keepAwake: KeepAwake | undefined;
+  if (c.get<boolean>('keepAwake', true)) {
+    keepAwake = new KeepAwake(ssap, Math.max(10, c.get<number>('keepAwakeIntervalSeconds', 60)) * 1000);
+    keepAwake.on('log', trace);
+    keepAwake.on('degraded', (why: string) =>
+      void vscode.window.showWarningMessage(
+        `Casting, but this TV would not accept the keep-awake nudge (${why}). ` +
+          'If the screen sleeps, turn off Screen Saver / Auto Power Off on the TV.'
+      )
+    );
+    await keepAwake.start();
+  }
+
+  session = { tv, ssap, capture, server, keepAwake, url };
   server.on('viewers', updateStatus);
   updateStatus();
 
@@ -293,6 +310,7 @@ async function teardown(): Promise<void> {
     return;
   }
   trace('tearing down');
+  current.keepAwake?.stop();
   current.capture.stop();
   await current.server.close();
   if (cfg().get<boolean>('closeBrowserOnStop', true) && current.ssap.connected) {

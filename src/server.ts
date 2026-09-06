@@ -5,6 +5,54 @@ import { ScreenCapture } from './capture';
 
 const BOUNDARY = 'weboscastframe';
 
+/**
+ * Four seconds of 128x128 black H.264, looped silently by the page so webOS
+ * sees the tab as playing media and holds off its screensaver. Baseline
+ * profile / yuv420p because the browser on a 2018 set decodes little else.
+ * Inline rather than a packaged file so the served page has no disk deps.
+ */
+const IDLE_VIDEO_MP4 = Buffer.from(
+  'AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAOAbW9vdgAAAGxtdmhkAAAAAAAA' +
+  'AAAAAAAAAAAD6AAAD6AAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAA' +
+  'AAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAqp0cmFrAAAAXHRr' +
+  'aGQAAAADAAAAAAAAAAAAAAABAAAAAAAAD6AAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAA' +
+  'AAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAIAAAACAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAA' +
+  'AAEAAA+gAAAAAAABAAAAAAIibWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAAAoAAAAoABVxAAA' +
+  'AAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABzW1pbmYA' +
+  'AAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAA' +
+  'AQAAAY1zdGJsAAAAuXN0c2QAAAAAAAAAAQAAAKlhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAA' +
+  'AAAAAIAAgABIAAAASAAAAAAAAAABFUxhdmM2Mi4yOC4xMDAgbGlieDI2NAAAAAAAAAAAAAAA' +
+  'GP//AAAAL2F2Y0MBQsAe/+EAF2dCwB7ZAgRsBEAAAAMAQAAAAwKDxYuSAQAFaMuDyyAAAAAQ' +
+  'cGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAAIQAAAAAAAAAAYc3R0cwAAAAAAAAABAAAAFAAA' +
+  'CAAAAAAgc3RzcwAAAAAAAAAEAAAAAQAAAAYAAAALAAAAEAAAABxzdHNjAAAAAAAAAAEAAAAB' +
+  'AAAAFAAAAAEAAABkc3RzegAAAAAAAAAAAAAAFAAAArEAAAALAAAACwAAAAsAAAALAAAAQAAA' +
+  'AAsAAAALAAAACwAAAAsAAABAAAAACwAAAAsAAAALAAAACwAAAEAAAAALAAAACwAAAAsAAAAK' +
+  'AAAAFHN0Y28AAAAAAAAAAQAAA7AAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAA' +
+  'AABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2' +
+  'ZjYyLjEyLjEwMAAAAAhmcmVlAAAEKG1kYXQAAAJtBgX//2ncRem95tlIt5Ys2CDZI+7veDI2' +
+  'NCAtIGNvcmUgMTY1IHIzMjIzIDA0ODBjYjAgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0g' +
+  'Q29weWxlZnQgMjAwMy0yMDI1IC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1s' +
+  'IC0gb3B0aW9uczogY2FiYWM9MCByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgxOjB4' +
+  'MTExIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEg' +
+  'bWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0wIGNxbT0wIGRlYWR6' +
+  'b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9NCBs' +
+  'b29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGlu' +
+  'dGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVz' +
+  'PTAgd2VpZ2h0cD0wIGtleWludD01IGtleWludF9taW49MSBzY2VuZWN1dD00MCBpbnRyYV9y' +
+  'ZWZyZXNoPTAgcmNfbG9va2FoZWFkPTUgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21w' +
+  'PTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4w' +
+  'MACAAAAAPGWIhAR8mKAANiMnJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' +
+  'XXXXXXXXXXXXXXXXgAAAAAdBmjgI+BBgAAAAB0GaVAI+BBgAAAAHQZpgEfAgwAAAAAdBmoAR' +
+  '8CDAAAAAPGWIggFPJigAD+/JycnJycnJ1111111111111111111111111111111111111111' +
+  '11111111111111114AAAAAdBmjgI+BBgAAAAB0GaVAI+BBgAAAAHQZpgEfAgwAAAAAdBmoAR' +
+  '8CDAAAAAPGWIhAU8mKAAP78nJycnJycnXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' +
+  'XXXXXXXXXXXXXXXXgAAAAAdBmjgI+BBgAAAAB0GaVAI+BBgAAAAHQZpgEfAgwAAAAAdBmoAR' +
+  '8CDAAAAAPGWIggFPJigAD+/JycnJycnJ1111111111111111111111111111111111111111' +
+  '11111111111111114AAAAAdBmjgI+BBgAAAAB0GaVAI+BBgAAAAHQZpgEPAgwAAAAAZBmoA/' +
+  'wIM=',
+  'base64'
+);
+
 interface Client {
   res: http.ServerResponse;
   saturated: boolean;
@@ -100,6 +148,16 @@ export class StreamServer extends EventEmitter {
         res.end(this.lastFrame);
         return;
       }
+
+      case '/keepawake.mp4':
+        done(200, 'screensaver suppressor');
+        res.writeHead(200, {
+          'content-type': 'video/mp4',
+          'content-length': IDLE_VIDEO_MP4.length,
+          'cache-control': 'no-store'
+        });
+        res.end(IDLE_VIDEO_MP4);
+        return;
 
       case '/health':
         done(200);
@@ -226,10 +284,18 @@ function page(token: string): string {
   }
   #status small { display: block; margin-top: 18px; font-size: 20px; color: #5f6368; }
   #status[hidden] { display: none; }
+  /* Deliberately NOT display:none -- a hidden video is throttled or treated as
+     not-playing on some webOS builds, which defeats the whole point. Two
+     near-invisible pixels in the corner keep it genuinely playing. */
+  #awake {
+    position: fixed; right: 0; bottom: 0;
+    width: 2px; height: 2px; opacity: 0.01; pointer-events: none;
+  }
 </style>
 </head>
 <body>
 <img id="shot" alt="">
+<video id="awake" muted loop playsinline autoplay preload="auto" tabindex="-1" aria-hidden="true"></video>
 <div id="status">Connecting to VS Code&hellip;<small id="detail"></small></div>
 <script>
 (function () {
@@ -303,6 +369,37 @@ function page(token: string): string {
     say('Reconnecting to VS Code\\u2026', 'frames received: ' + frames);
     retry = setTimeout(mode === 'poll' ? pollOnce : startMjpeg, 2000);
   };
+
+  // --- screensaver suppression --------------------------------------------
+  // The TV blanks the panel after a few minutes of what it considers an idle
+  // page. Playing media is the browser-level signal that it is not idle; the
+  // extension separately nudges the TV's pointer channel for the system-level
+  // idle timer. Belt and braces: which one is honoured varies by model year.
+  var awake = document.getElementById('awake');
+
+  function keepPlaying() {
+    if (!awake) { return; }
+    if (!awake.getAttribute('src')) {
+      awake.setAttribute('src', url('/keepawake.mp4'));
+    }
+    if (awake.paused || awake.ended) {
+      var p = awake.play();
+      // Older webOS returns undefined rather than a promise here.
+      if (p && p.catch) { p.catch(function () { /* retried on the next tick */ }); }
+    }
+  }
+
+  // 'ended' fires instead of looping on some builds, and a backgrounded tab
+  // can be paused by the browser and never resumed on its own.
+  if (awake) {
+    awake.addEventListener('ended', keepPlaying);
+    awake.addEventListener('pause', keepPlaying);
+    awake.addEventListener('error', function () {
+      awake.removeAttribute('src');
+    });
+  }
+  keepPlaying();
+  setInterval(keepPlaying, 30000);
 
   startMjpeg();
 })();

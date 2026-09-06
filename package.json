@@ -103,6 +103,17 @@
           "default": 0,
           "description": "Monitor index to capture (ddagrab output_idx / avfoundation device index)."
         },
+        "webosCast.keepAwake": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stop the TV sleeping while casting, by reporting input to it and playing a silent video in the cast page. Turn off if you want the TV to sleep on its own schedule."
+        },
+        "webosCast.keepAwakeIntervalSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 10,
+          "description": "How often to nudge the TV while casting. Must be shorter than the TV’s screensaver timeout."
+        },
         "webosCast.closeBrowserOnStop": {
           "type": "boolean",
           "default": true,

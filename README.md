@@ -81,6 +81,8 @@ tower icon once it is actually pulling frames.
 | `webosCast.ffmpegPath` | `ffmpeg` | |
 | `webosCast.captureMethod` | `auto` | `ddagrab`/`gdigrab`/`avfoundation`/`x11grab`. |
 | `webosCast.monitor` | `0` | Which display to capture. |
+| `webosCast.keepAwake` | `true` | Stop the TV sleeping mid-cast. Turn off to let it sleep normally. |
+| `webosCast.keepAwakeIntervalSeconds` | `60` | Nudge interval. Must be shorter than the TV's screensaver timeout. |
 | `webosCast.closeBrowserOnStop` | `true` | Close the TV browser when casting stops. |
 
 At the defaults, expect roughly 6–10 Mbit/s on the wire.
@@ -112,6 +114,25 @@ a 403. Without that, anything on the LAN could pull a live view of your screen.
 **Backpressure.** Frames are dropped, never queued, when a viewer's socket is
 saturated, so a slow TV cannot grow the extension host's heap.
 
+**Keeping the TV awake.** A cast looks idle to webOS: the page is a still `<img>`,
+nobody touches the remote, and after a few minutes the set runs its screensaver
+and blanks the panel while the stream underneath is still perfectly healthy. Two
+independent defences, because which one a set honours varies by model year:
+
+- *System idle timer* — the extension opens the TV's pointer channel
+  (`ssap://com.webos.service.networkinput/getPointerInputSocket`) and sends a
+  zero-delta move every 60s. The TV counts it as user input; the cursor does not
+  move and nothing appears on screen.
+- *Browser screensaver* — the served page loops a 2 KB muted black video, so the
+  tab registers as playing media. It is 2×2 px at 1% opacity rather than
+  `display: none`, because a hidden video gets throttled or treated as
+  not-playing on some builds.
+
+Both are best-effort: a set that refuses the pointer channel still casts, with a
+warning. Neither overrides an explicit **Sleep Timer** or **Auto Power Off** on
+the TV — those are deliberate, so they are left alone. If the screen still sleeps,
+that is where to look (General → Timers on most sets).
+
 ## Limits
 
 - **No audio.** MJPEG is video-only. Audio needs a second transport, which
@@ -130,3 +151,15 @@ TV, then `ares-package` / `ares-install` / `ares-launch` an `.ipk` that fullscre
 the same stream. That drops the browser chrome and gives you a persistent
 WebSocket back to VS Code. The tradeoff is that Developer Mode sessions expire and
 need periodic renewal from the TV's Developer Mode app.
+
+
+
+
+
+
+
+
+
+
+npm run pair
+npm run cast

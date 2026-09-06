@@ -224,6 +224,27 @@ export class SsapClient extends EventEmitter {
     return this.request('ssap://system.launcher/close', { id: 'com.webos.app.browser' });
   }
 
+  /**
+   * Opens the TV's pointer (magic remote) channel. Writing to it counts as
+   * user input, which is what resets the idle timer behind the screensaver.
+   */
+  async pointerInput(): Promise<PointerInput> {
+    const payload = await this.request('ssap://com.webos.service.networkinput/getPointerInputSocket');
+    const path = payload?.socketPath;
+    if (typeof path !== 'string' || path.length === 0) {
+      throw new Error('The TV did not return a pointer input socket');
+    }
+    return PointerInput.open(path);
+  }
+
+  /**
+   * Wakes the panel if the TV has already blanked it. webOS 4+; older sets
+   * reject the URI, so callers should treat a failure as non-fatal.
+   */
+  turnOnScreen(): Promise<any> {
+    return this.request('ssap://com.webos.service.tvpower/power/turnOnScreen');
+  }
+
   get connected(): boolean {
     return this.ws?.readyState === WebSocket.OPEN;
   }
@@ -237,5 +258,58 @@ export class SsapClient extends EventEmitter {
       /* already gone */
     }
     this.ws = undefined;
+  }
+}
+
+/**
+ * The pointer channel speaks newline-delimited `key:value` records terminated
+ * by a blank line, not JSON. A zero-delta move is the useful trick here: the
+ * TV counts it as input and resets its idle timer, but the cursor does not
+ * move and nothing appears on screen.
+ */
+export class PointerInput {
+  private constructor(private readonly ws: WebSocket) {}
+
+  static open(url: string): Promise<PointerInput> {
+    return new Promise((resolve, reject) => {
+      const ws = new WebSocket(url, { rejectUnauthorized: false, handshakeTimeout: 5000 });
+      const onOpen = () => {
+        ws.off('error', onError);
+        // Swallow socket errors after handshake; the owner polls `connected`.
+        ws.on('error', () => undefined);
+        resolve(new PointerInput(ws));
+      };
+      const onError = (err: Error) => {
+        ws.off('open', onOpen);
+        try {
+          ws.terminate();
+        } catch {
+          /* nothing to tear down */
+        }
+        reject(err);
+      };
+      ws.once('open', onOpen);
+      ws.once('error', onError);
+    });
+  }
+
+  /** Reports input to the TV without moving the cursor. */
+  nudge(): void {
+    if (this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('Pointer channel is not open');
+    }
+    this.ws.send('type:move\ndx:0\ndy:0\ndown:0\n\n');
+  }
+
+  get connected(): boolean {
+    return this.ws.readyState === WebSocket.OPEN;
+  }
+
+  close(): void {
+    try {
+      this.ws.close();
+    } catch {
+      /* already gone */
+    }
   }
 }
