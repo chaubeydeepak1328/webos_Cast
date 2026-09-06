@@ -1,0 +1,131 @@
+{
+  "name": "webos-cast",
+  "displayName": "Cast to webOS TV",
+  "description": "Mirror your screen to an LG webOS TV from VS Code over your LAN.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "webosCast.cast",
+        "title": "Cast to webOS TV",
+        "category": "webOS"
+      },
+      {
+        "command": "webosCast.stop",
+        "title": "Stop Casting",
+        "category": "webOS"
+      },
+      {
+        "command": "webosCast.pair",
+        "title": "Pair with TV (force re-pair)",
+        "category": "webOS"
+      },
+      {
+        "command": "webosCast.forget",
+        "title": "Forget Paired TV",
+        "category": "webOS"
+      },
+      {
+        "command": "webosCast.openLocalPreview",
+        "title": "Open Stream Preview Locally",
+        "category": "webOS"
+      },
+      {
+        "command": "webosCast.showLog",
+        "title": "Show Log",
+        "category": "webOS"
+      }
+    ],
+    "configuration": {
+      "title": "Cast to webOS TV",
+      "properties": {
+        "webosCast.tvAddress": {
+          "type": "string",
+          "default": "",
+          "description": "IP address of the webOS TV. Leave empty to discover TVs on the network."
+        },
+        "webosCast.port": {
+          "type": "number",
+          "default": 7337,
+          "description": "Local HTTP port used to serve the stream to the TV."
+        },
+        "webosCast.bindAddress": {
+          "type": "string",
+          "default": "",
+          "description": "LAN IP of this machine to advertise to the TV. Leave empty to auto-detect the adapter on the TV's subnet."
+        },
+        "webosCast.framerate": {
+          "type": "number",
+          "default": 15,
+          "description": "Capture framerate. 10-15 is plenty for a dev screen; higher costs bandwidth."
+        },
+        "webosCast.width": {
+          "type": "number",
+          "default": 1280,
+          "description": "Width to scale the capture to. Height follows the aspect ratio."
+        },
+        "webosCast.quality": {
+          "type": "number",
+          "default": 6,
+          "minimum": 2,
+          "maximum": 31,
+          "description": "MJPEG quality (ffmpeg -q:v). 2 = best/largest, 31 = worst/smallest."
+        },
+        "webosCast.ffmpegPath": {
+          "type": "string",
+          "default": "ffmpeg",
+          "description": "Path to the ffmpeg binary."
+        },
+        "webosCast.captureMethod": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "ddagrab",
+            "gdigrab",
+            "avfoundation",
+            "x11grab"
+          ],
+          "default": "auto",
+          "description": "Screen capture backend. 'auto' picks per platform and falls back to gdigrab on Windows if ddagrab fails."
+        },
+        "webosCast.monitor": {
+          "type": "number",
+          "default": 0,
+          "description": "Monitor index to capture (ddagrab output_idx / avfoundation device index)."
+        },
+        "webosCast.closeBrowserOnStop": {
+          "type": "boolean",
+          "default": true,
+          "description": "Close the TV browser app when casting stops."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "doctor": "npm run compile && node scripts/doctor.js",
+    "pair": "npm run compile && node scripts/pair.js",
+    "cast": "npm run compile && node scripts/cast.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.0"
+  }
+}
